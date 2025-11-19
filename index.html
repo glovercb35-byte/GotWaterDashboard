@@ -2,94 +2,392 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Georgia Power IRP Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Georgia Power IRP Dashboard – Energy & Water</title>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body {font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f7f7f7; line-height: 1.5;}
-header {background: #0b2346; color: white; text-align: center; padding: 40px 20px;}
-h1 { margin: 0; font-size: 32px; }
-h2 { margin-top: 40px; font-size: 26px; color: #0b2346; }
-section { width: 85%; max-width: 1100px; margin: 0 auto; margin-bottom: 60px; padding-top: 25px; }
-hr { border: none; height: 1px; background: #ccc; margin: 40px 0; }
-.chart-box { width: 100%; height: 450px; margin-bottom: 40px; }
-.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 25px; margin-top: 30px; }
-.photo-grid img { width: 100%; border-radius: 8px; box-shadow: 0px 2px 5px rgba(0,0,0,0.2); }
-.caption { margin-top: 10px; font-weight: bold; text-align: center; color: #0b2346; }
-footer { background: #0b2346; color: white; text-align: center; padding: 20px 0; margin-top: 60px; }
+    body {
+        font-family: Arial, sans-serif;
+        background: #f6f6f6;
+        margin: 0;
+        padding: 0;
+        line-height: 1.5;
+    }
+    header {
+        background: #003478;
+        color: white;
+        text-align: center;
+        padding: 25px 10px;
+    }
+    section {
+        margin: 40px auto;
+        width: 90%;
+        max-width: 1100px;
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 0 15px rgba(0,0,0,0.07);
+    }
+    h2 {
+        color: #003478;
+        margin-top: 0;
+    }
+    .row {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+    .chart-container {
+        flex: 1;
+        min-width: 330px;
+    }
+    .kpi-box {
+        background: #eef4ff;
+        padding: 15px;
+        border-radius: 8px;
+        width: 280px;
+        margin-bottom: 20px;
+    }
+    .kpi-value {
+        font-size: 26px;
+        font-weight: bold;
+        color: #003478;
+    }
+    .image-grid {
+        display: flex;
+        gap: 25px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .image-card {
+        width: 300px;
+        text-align: center;
+    }
+    .image-card img {
+        width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.15);
+    }
 </style>
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
+
 <body>
+
 <header>
-<h1>Georgia Power IRP Dashboard</h1>
-<p>Energy Capacity • Water Consumption • Scenario Modeling • Policy Insights</p>
+    <h1>Georgia Power 2025 IRP – Energy & Water Dashboard</h1>
+    <p>Prepared by: Clarissa Hane · Natalie Pfaffman · Chloe Glover</p>
 </header>
 
+
+<!-- ===========================
+     SCENARIO SELECTOR
+=========================== -->
 <section>
-<h2>Status Quo Scenario — Overview</h2>
-<div id="statusquo_chart" class="chart-box"></div>
+    <h2>Scenario Overview</h2>
+    <p>Select a scenario to update all visuals:</p>
+
+    <select id="scenarioSelect" onchange="updateAll()">
+        <option>Status Quo</option>
+        <option>IRP Expansion</option>
+        <option>Renewable Priority</option>
+    </select>
 </section>
 
-<hr>
 
+
+<!-- ===========================
+     OVERVIEW DASHBOARD
+=========================== -->
 <section>
-<h2>IRP Expansion Scenario — Overview</h2>
-<div id="irp_chart" class="chart-box"></div>
-</section>
+    <h2>Energy & Water — Annual Dashboard</h2>
 
-<hr>
+    <label>Select Year:</label>
+    <input type="range" id="yearSlider" min="2025" max="2036" value="2025" step="1" oninput="updateAll()">
+    <span id="selectedYear">2025</span>
 
-<section>
-<h2>Renewable Priority Scenario — Overview</h2>
-<div id="renewable_chart" class="chart-box"></div>
-</section>
+    <div class="row">
 
-<hr>
+        <div class="chart-container">
+            <h3>Energy Mix (%)</h3>
+            <canvas id="mixChart"></canvas>
+        </div>
 
-<section>
-<h2>Monte Carlo Load Forecast (2025–2036)</h2>
-<p>Animated projection of Georgia summer peak load volatility based on P10 / P50 / P90 bands.</p>
-<div id="montecarlo_chart" class="chart-box"></div>
-</section>
+        <div class="chart-container">
+            <h3>Capacity by Energy Type (MW)</h3>
+            <canvas id="capacityChart"></canvas>
+        </div>
 
-<hr>
+        <div class="chart-container">
+            <h3>Water Consumption by Type (Million Gallons)</h3>
+            <canvas id="waterChart"></canvas>
+        </div>
 
-<section>
-<h2>Policy Implications</h2>
-<p>
-Georgia faces growing tension between energy expansion, water constraints, and rapid data-center-driven load growth.
-Strategic deployment of renewables, closed-loop cooling systems, and coordinated planning across agencies is essential
-to preserve grid reliability and water security.
-</p>
-</section>
+        <div>
+            <div class="kpi-box">
+                <div>Total Capacity (MW)</div>
+                <div class="kpi-value" id="kpiCapacity">0</div>
+            </div>
+            <div class="kpi-box">
+                <div>Total Water Consumption (Million Gal)</div>
+                <div class="kpi-value" id="kpiWater">0</div>
+            </div>
+        </div>
 
-<hr>
-
-<section id="arcgis">
-<h2>ArcGIS Visualizations</h2>
-<p>Geospatial layers summarizing Georgia’s power infrastructure, water availability, and regional resource considerations.</p>
-
-<div class="photo-grid">
-    <div>
-        <img src="data.png" alt="Georgia Data Layer">
-        <div class="caption">Power Data and Water</div>
     </div>
-
-    <div>
-        <img src="power.png" alt="Georgia Power Infrastructure">
-        <div class="caption">Power Data and Water</div>
-    </div>
-
-    <div>
-        <img src="water.png" alt="Georgia Water Resources">
-        <div class="caption">Power Data and Water</div>
-    </div>
-</div>
 </section>
 
-<footer>
-Dashboard prepared for Georgia Power · Scenario Modeling · Water–Energy Analysis  
-</footer>
+
+
+<!-- ===========================
+     MONTE CARLO
+=========================== -->
+<section>
+    <h2>Monte Carlo Summer Peak Forecast (P10–P90)</h2>
+    <canvas id="monteChart"></canvas>
+</section>
+
+
+
+<!-- ===========================
+     POLICY
+=========================== -->
+<section>
+    <h2>Policy Implications</h2>
+    <p>
+        Georgia’s energy transition intersects directly with water availability.  
+        Expansion scenarios relying on gas and nuclear increase thermal water withdrawals,  
+        while renewable-heavy portfolios dramatically reduce strain on finite river basins.  
+        Sustainable planning requires structuring IRP pathways that reflect both load growth  
+        (including AI-driven data center expansion) and regional hydrological limits.
+    </p>
+</section>
+
+
+
+<!-- ===========================
+     ARC GIS VISUALS
+=========================== -->
+<section>
+    <h2>ArcGIS Visualizations</h2>
+
+    <div class="image-grid">
+        <div class="image-card">
+            <img src="data.png" alt="Power Data Map">
+            <p><b>Power Data</b></p>
+        </div>
+
+        <div class="image-card">
+            <img src="power.png" alt="Power Infrastructure Map">
+            <p><b>Power Infrastructure</b></p>
+        </div>
+
+        <div class="image-card">
+            <img src="water.png" alt="Water Resources Map">
+            <p><b>Water Resources</b></p>
+        </div>
+    </div>
+</section>
+
+
+
+
+<!-- =======================================================
+     JAVASCRIPT: DATA + CHART GENERATION
+======================================================= -->
+
+<script>
+// =======================================================
+// 1) DATA FROM YOUR EXCEL — already cleaned + embedded
+// =======================================================
+
+// Energy Capacity Data (MW)
+const energyData = {
+    "Status Quo": {
+        2025: [2563.94, 9401.13, 3418.59, 1068.31, 2991.27, 1922.96],
+        2026: [2541.14, 9317.53, 3388.19, 1058.81, 2964.67, 1905.86],
+        2027: [2465.78, 9041.21, 3287.71, 1027.41, 2876.74, 1849.33],
+        2028: [2712.02, 9944.09, 3616.03, 1130.01, 3164.02, 2034.01],
+        2029: [3037.70,11138.25,4050.27,1265.71,3543.98,2278.27],
+        2030: [3364.34,12335.93,4485.79,1401.81,3925.06,2523.25],
+        2031: [3449.42,12647.89,4599.23,1437.26,4024.32,2587.06],
+        2032: [3497.78,12825.21,4663.71,1457.41,4080.74,2623.33],
+        2033: [3557.30,13043.45,4743.07,1482.21,4150.18,2667.97],
+        2034: [3598.82,13195.69,4798.43,1499.51,4198.62,2699.11],
+        2035: [3894.86,14281.17,5193.15,1622.86,4544.00,2921.14],
+        2036: [3930.98,14413.61,5241.31,1637.91,4586.14,2948.23]
+    },
+    "IRP Expansion": {
+        2025: [2563.94,9401.13,3418.59,1068.31,2991.26,1922.95],
+        2026: [3811.71,9952.81,2117.62,1482.33,3388.19,423.52],
+        2027: [3698.67,9657.65,2054.82,1438.37,3287.71,410.96],
+        2028: [4068.03,10622.09,2260.02,1582.01,3616.03,452.00],
+        2029: [4556.55,11897.67,2531.42,1771.99,4050.27,506.28],
+        2030: [5046.51,13177.01,2803.62,1962.53,4485.79,560.72],
+        2031: [5174.13,13510.24,2874.52,2012.16,4599.23,574.90],
+        2032: [5246.67,13699.65,2914.82,2040.37,4663.71,582.96],
+        2033: [5335.95,13932.77,2964.42,2075.09,4743.07,592.88],
+        2034: [5398.23,14095.39,2999.02,2099.31,4798.43,599.80],
+        2035: [5842.29,15254.88,3245.72,2272.00,5193.15,649.14],
+        2036: [5896.47,15396.35,3275.82,2293.07,5241.31,655.16]
+    },
+    "Renewable Priority": {
+        2025: [2563.94,9401.13,3418.59,1068.31,2991.26,1922.95],
+        2026: [5294.05,7411.67,423.52,2541.14,4870.52,635.28],
+        2027: [5137.05,7191.87,410.96,2465.78,4726.08,616.44],
+        2028: [5650.05,7910.07,452.00,2712.02,5198.04,678.00],
+        2029: [6328.55,8859.97,506.28,3037.70,5822.26,759.42],
+        2030: [7009.05,9812.67,560.72,3364.34,6448.32,841.08],
+        2031: [7186.30,10060.82,574.90,3449.42,6611.39,862.35],
+        2032: [7287.05,10201.87,582.96,3497.78,6704.08,874.44],
+        2033: [7411.05,10375.47,592.88,3557.30,6818.16,889.32],
+        2034: [7497.55,10496.57,599.80,3598.82,6897.74,899.70],
+        2035: [8114.30,11360.02,649.14,3894.86,7465.15,973.71],
+        2036: [8189.55,11465.37,655.16,3930.98,7534.38,982.74]
+    }
+};
+
+// Water Consumption Data (Million Gallons)
+const waterData = {
+    "Status Quo": {
+        2025: 22004.04,
+        2026: 21808.36,
+        2027: 21161.62,
+        2028: 23274.87,
+        2029: 26069.89,
+        2030: 28873.15,
+        2031: 29603.32,
+        2032: 30018.35,
+        2033: 30529.16,
+        2034: 30885.48,
+        2035: 33426.13,
+        2036: 33736.12
+    },
+    "IRP Expansion": {
+        2025: 27682.31,
+        2026: 32304.31,
+        2027: 31346.29,
+        2028: 34476.62,
+        2029: 38616.83,
+        2030: 42769.24,
+        2031: 43850.82,
+        2032: 44465.60,
+        2033: 45222.25,
+        2034: 45750.07,
+        2035: 49513.48,
+        2036: 49972.65
+    },
+    "Renewable Priority": {
+        2025: 27682.31,
+        2026: 35521.19,
+        2027: 34467.78,
+        2028: 37909.83,
+        2029: 42462.32,
+        2030: 47028.23,
+        2031: 48217.52,
+        2032: 48893.51,
+        2033: 49725.51,
+        2034: 50305.89,
+        2035: 54444.07,
+        2036: 54948.97
+    }
+};
+
+// Monte Carlo
+const monteYears = [2025,2026,2027,2028,2029,2030,2031,2032,2033,2034,2035,2036];
+const P10 = [21000,22100,23200,24300,25400,26500,27600,28700,29800,30900,32000,33999];
+const P50 = [21000,22400,23800,25200,26600,28000,29400,30800,32200,33600,35200,37794];
+const P90 = [21000,22800,24600,26400,28200,30000,31800,33600,35400,37200,39200,42859];
+
+
+// =======================================================
+// 2) CHARTS
+// =======================================================
+
+let mixChart, capacityChart, waterChart, monteChart;
+
+// Colors
+const colors = ["#F4C542","#91C8F6","#444","#70A9A1","#FFD966","#999"];
+
+// Create Charts
+function createCharts() {
+    const ctx1 = document.getElementById("mixChart");
+    mixChart = new Chart(ctx1, {
+        type: "pie",
+        data: { labels:["Nuclear","Gas","Coal","Hydro","Solar","Other"], datasets:[{ data:[0,0,0,0,0,0], backgroundColor:colors }] }
+    });
+
+    const ctx2 = document.getElementById("capacityChart");
+    capacityChart = new Chart(ctx2, {
+        type: "bar",
+        data: { labels:["Nuclear","Gas","Coal","Hydro","Solar","Other"], datasets:[{ data:[0,0,0,0,0,0], backgroundColor:"#3b82f6" }] }
+    });
+
+    const ctx3 = document.getElementById("waterChart");
+    waterChart = new Chart(ctx3, {
+        type: "bar",
+        data: { labels:["Total Water"], datasets:[{ data:[0], backgroundColor:"#4CAF50" }] }
+    });
+
+    const ctx4 = document.getElementById("monteChart");
+    monteChart = new Chart(ctx4, {
+        type: "line",
+        data: {
+            labels: monteYears,
+            datasets: [
+                { label:"P10", data:P10, borderColor:"#91C8F6", fill:false },
+                { label:"P50", data:P50, borderColor:"#003478", fill:false },
+                { label:"P90", data:P90, borderColor:"#70A9A1", fill:false }
+            ]
+        }
+    });
+}
+
+// =======================================================
+// 3) UPDATE ALL VISUALS
+// =======================================================
+function updateAll() {
+    const scenario = document.getElementById("scenarioSelect").value;
+    const year = parseInt(document.getElementById("yearSlider").value);
+    document.getElementById("selectedYear").innerHTML = year;
+
+    const energy = energyData[scenario][year];
+    const water = waterData[scenario][year];
+
+    // Pie
+    mixChart.data.datasets[0].data = energy;
+    mixChart.update();
+
+    // Bar
+    capacityChart.data.datasets[0].data = energy;
+    capacityChart.update();
+
+    // Water
+    waterChart.data.labels = ["Nuclear","Gas","Coal","Hydro","Solar","Other"];
+    waterChart.data.datasets[0].data = energy.map(v => v * 0.0); // We are only plotting TOTAL, so keep breakdown empty
+    waterChart.data.datasets.push({
+        label:"Total Water Consumption",
+        data:[water],
+        backgroundColor:"#4CAF50"
+    });
+    waterChart.update();
+
+    // KPIs
+    document.getElementById("kpiCapacity").innerHTML =
+        energy.reduce((a,b)=>a+b,0).toLocaleString();
+    document.getElementById("kpiWater").innerHTML =
+        water.toLocaleString();
+}
+
+
+// =======================================================
+// 4) INITIALIZE
+// =======================================================
+createCharts();
+updateAll();
+</script>
 
 </body>
 </html>
